@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+    <head>
+        <title class="ttl">loading...</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <link rel="icon" href="images/favicon.svg" sizes="any" type="image/svg+xml" />
+        <script type="text/javascript">
+            function setTitle(s) {
+                document.querySelectorAll('.ttl').forEach((e) => {
+                    e.innerText = s;
+                });
+            }
+
+            const allTags = {};
+
+            async function ping() {
+                const response = await fetch('/api/ping', {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+
+            async function loadTags() {
+                document.querySelector('#tags').innerHTML = '';
+                const response = await fetch('/api/tags', {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const tags = await response.json();
+                tags.forEach((e) => {
+                    allTags['t_'+e.k] = e.n
+                    const t = tpl('tag');
+                    t.querySelector('.tagkey').value = e.k;
+                    t.querySelector('.tagname').innerText = e.n;
+                    document.querySelector('#tags').insertAdjacentElement('afterbegin', t);
+                    document.querySelector('#tags .tagkey[value="'+e.k+'"]').addEventListener('change', (e) => {
+                        console.log(e);
+                        if(e.target.checked) {
+                            e.target.parentElement.classList.add('did');
+                        } else {
+                            e.target.parentElement.classList.remove('did');
+                        }
+                        loadShows();
+                    });
+                });
+                setTitle('Baggshows');
+            }
+
+            async function loadShows() {
+                document.querySelector('#shows').innerHTML = '';
+                const tagged = [];
+                document.querySelectorAll('form#search input:checked').forEach((e) => {
+                    tagged.push(e.value);
+                });
+                const response = await fetch('/api/tagged/'+tagged.join('-'), {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const shows = await response.json();
+                shows.forEach((e) => {
+                    const t = tpl('show');
+                    t.querySelector('.showname').innerText = e.n;
+                    const tt = e.t.map(s => allTags['t_'+s]);
+                    t.querySelector('.showtags').innerText = tt.join(', ');
+                    document.querySelector('#shows').insertAdjacentElement('afterbegin', t);
+                });
+                setTitle('Baggshows - '+tagged.map(t => allTags['t_'+t]).join(', '));
+            }
+
+            function tpl(k) {
+                return document.querySelector('template#tpl_'+k).content.firstElementChild.cloneNode(true);
+            }
+
+            async function start() {
+                await loadTags();
+            }
+
+            window.addEventListener('load', start);
+        </script>
+        <style type="text/css">
+
+            html {
+                height:100%;
+                box-sizing: border-box;
+                margin: 0px;
+                padding: 0px;
+            }
+
+            body {
+                font-family: Verdana, Geneva, Tahoma, sans-serif;
+                height:100%;
+                margin: 0px;
+                padding: 0px;
+            }
+
+            #wrapper {
+                min-height: 100%;
+                display: grid;
+                grid-template-rows: auto 1fr auto;
+            }
+
+            form ul {
+                list-style: none;
+                display: flex;
+            }
+
+            form ul li label {
+                font-weight: bold;
+                padding: 10px;
+                margin: 10px;
+                background-color: white;
+                border: 1px solid black;
+                color: black;
+                border-radius: 4px;
+            }
+
+            form ul li label.did {
+                background-color: black;
+                color: white;
+            }
+
+            form ul li input {
+                display: none;
+            }
+
+            #wrapper > footer {
+                font-weight: bold;
+                background-color: black;
+                color: white;
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper">
+            <header>
+                <h1 class="ttl">loading...</h1>
+                <form method="post" action="/" id="search">
+                    <ul id="tags"></ul>
+                </form>
+            </header>
+            <section id="shows"></section>
+            <footer>
+                Ping:
+                <span id="ping">?</span>ms
+            </footer>
+        </div>
+        <template id="tpl_tag">
+            <li>
+                <label>
+                    <input type="checkbox" class="tagkey" name="tags[]" value="" />
+                    <span class="tagname"></span>
+                </label>
+            </li>
+        </template>
+        <template id="tpl_show">
+            <article>
+                <header>
+                    <h2 class="showname"></h2>
+                </header>
+                <p class="showtags"></p>
+            </article>
+        </template>
+    </body>
+</html>
